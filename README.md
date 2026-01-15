@@ -1,21 +1,27 @@
-# Azure Functions Event Hubs - TypeScript
+# Azure Functions TypeScript - Event Hubs Sample
 
-This project demonstrates an Azure Functions application written in TypeScript that processes messages from Azure Event Hubs. It includes an Event Hub trigger function that reads messages from an input Event Hub, processes them, and sends the processed messages to an output Event Hub.
+An Azure Functions quickstart project demonstrating Event Hubs integration with TypeScript and Azure Developer CLI (azd). This sample showcases an automated message processing system with timer-based message generation and event-driven processing.
 
 ## Features
 
-- **Event Hub Trigger**: Automatically processes messages from an input Event Hub
-- **Event Hub Output Binding**: Sends processed messages to an output Event Hub
-- **TypeScript**: Full type safety and modern JavaScript features
-- **Infrastructure as Code**: Complete Bicep templates for Azure resources
-- **Azure Developer CLI**: Streamlined deployment with `azd`
+- **Timer Trigger**: Automatically generates 3-5 test messages every minute
+- **Event Hub Trigger**: Processes messages from Event Hubs with batching support
+- **Event Hub Output Binding**: Sends processed messages to output Event Hub
+- **TypeScript**: Full type safety and modern JavaScript features  
+- **Emoji Logging**: Enhanced logging with emojis for better visibility
+- **Azure Verified Modules (AVM)**: Production-ready Bicep infrastructure
+- **Managed Identity**: Passwordless, secure authentication throughout
+- **Flex Consumption**: Automatic scaling with Azure Functions Flex Consumption plan
+- **Optional VNet Integration**: Support for private endpoints and network isolation
 
 ## Architecture
 
 ```
-Input Event Hub → Azure Function → Output Event Hub
-                      ↓
-              Application Insights
+Timer Trigger (every minute)
+    ↓
+Input Event Hub → Event Hub Trigger → Output Event Hub
+                         ↓
+                Application Insights
 ```
 
 ## Prerequisites
@@ -32,15 +38,22 @@ Input Event Hub → Azure Function → Output Event Hub
 .
 ├── src/
 │   └── functions/
-│       └── EventHubsTrigger.ts    # Event Hub trigger function
+│       ├── EventHubsTrigger.ts    # Event Hub trigger function
+│       └── TimerTrigger.ts        # Timer trigger (generates messages)
 ├── infra/                          # Bicep infrastructure files
 │   ├── main.bicep                  # Main deployment template
-│   ├── resources.bicep             # Event Hub resources
-│   ├── functionapp.bicep           # Function App configuration
-│   ├── monitor.bicep               # Application Insights
-│   ├── storage.bicep               # Storage account
+│   ├── main.parameters.json        # Deployment parameters
 │   ├── abbreviations.json          # Resource naming conventions
-│   └── main.parameters.json        # Deployment parameters
+│   ├── app/                        # Modular infrastructure components
+│   │   ├── api.bicep               # Function App (Flex Consumption)
+│   │   ├── eventhubs.bicep         # Event Hubs namespace and hubs
+│   │   ├── eventhubs-PrivateEndpoint.bicep  # Event Hubs private endpoint
+│   │   ├── storage-PrivateEndpoint.bicep    # Storage private endpoints
+│   │   ├── vnet.bicep              # Virtual Network configuration
+│   │   └── rbac.bicep              # Role-based access control
+│   └── scripts/                    # Deployment scripts
+│       ├── postprovision.ps1       # Post-provision setup (Windows)
+│       └── postprovision.sh        # Post-provision setup (POSIX)
 ├── package.json
 ├── tsconfig.json
 ├── host.json
@@ -50,12 +63,18 @@ Input Event Hub → Azure Function → Output Event Hub
 
 ## Function Logic
 
-The `EventHubsTrigger` function:
-1. Receives messages from the input Event Hub
-2. Parses and processes each message
-3. Adds metadata (ID, timestamp)
-4. Sends processed messages to the output Event Hub
-5. Logs processing information to Application Insights
+### TimerTrigger
+- Runs every minute (configurable via cron schedule)
+- Generates 3-5 random test messages
+- Sends messages to `input-events` Event Hub
+- Logs with ⏰, 📝, and ✅ emojis
+
+### EventHubsTrigger  
+- Triggered by messages in `input-events` Event Hub
+- Processes messages in batches (cardinality: many)
+- Adds processing metadata and timestamps
+- Sends processed messages to `output-events` Event Hub
+- Logs with 🔄, 📨, ✨, and 📤 emojis
 
 ## Local Development
 
@@ -67,14 +86,14 @@ npm install
 
 ### 2. Configure Local Settings
 
-Create or update `local.settings.json`:
+The `azd provision` command automatically creates `local.settings.json` via a post-provision hook:
 
 ```json
 {
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "EventHubConnection__fullyQualifiedNamespace": "<your-eventhub-namespace>.servicebus.windows.net",
     "INPUT_EVENTHUB_NAME": "input-events",
     "OUTPUT_EVENTHUB_NAME": "output-events"
@@ -103,70 +122,67 @@ npm start
    azd auth login
    ```
 
-2. **Initialize the environment**:
-   ```bash
-   azd env new
-   ```
-   Enter an environment name (e.g., "dev").
-
-3. **Provision and deploy**:
+2. **Provision and deploy**:
    ```bash
    azd up
    ```
 
-This command will:
-- Create all Azure resources (Event Hubs, Function App, Storage, Application Insights)
-- Deploy your function code
-- Configure all connections and settings
+   This command will:
+   - Prompt for environment name and Azure location
+   - Ask whether to enable VNet integration (optional)
+   - Create all Azure resources (Event Hubs, Function App, Storage, Application Insights)
+   - Deploy your function code
+   - Configure all connections and settings with managed identity
+   - Create `local.settings.json` for local development
 
-### Manual Deployment
+### What Gets Deployed
 
-1. **Create Azure resources**:
-   ```bash
-   az group create --name rg-eventhubs-typescript --location eastus
-   az deployment group create --resource-group rg-eventhubs-typescript --template-file infra/main.bicep
-   ```
-
-2. **Deploy function code**:
-   ```bash
-   npm run build
-   func azure functionapp publish <function-app-name>
-   ```
+- **Event Hubs Namespace** with two hubs:
+  - `input-events` (2 partitions)
+  - `output-events` (2 partitions)
+- **Function App** on Flex Consumption plan (FC1 SKU)
+- **Application Insights** for monitoring
+- **Storage Account** for function app storage
+- **User-Assigned Managed Identity** for authentication
+- **RBAC Role Assignments** for secure access
+- **Optional**: VNet, Private Endpoints, and DNS zones
 
 ## Testing
 
-### Send Test Messages
+### Automated Testing (Recommended)
 
-Use Azure CLI to send test messages to the input Event Hub:
-
-```bash
-# Install jq if not already installed (for JSON processing)
-# On Windows: choco install jq
-# On macOS: brew install jq
-# On Linux: sudo apt-get install jq
-
-# Send a test message
-az eventhubs eventhub message send \
-  --namespace-name <your-namespace> \
-  --eventhub-name input-events \
-  --messages '[{"id": "1", "message": "Hello from CLI"}]'
-```
+The deployed function automatically generates and processes messages every minute via the TimerTrigger. No manual message sending required!
 
 ### Monitor Function Execution
 
-1. **View logs in the portal**:
-   - Navigate to your Function App in Azure Portal
-   - Go to "Monitor" → "Logs"
+**View in Application Insights Logs**:
+```bash
+# Query recent function executions
+az monitor app-insights query \
+  --app <app-insights-name> \
+  --analytics-query "traces | where timestamp > ago(5m) | project timestamp, operation_Name, message | order by timestamp desc"
+```
 
-2. **View in Application Insights**:
-   ```bash
-   az monitor app-insights query \
-     --app <app-insights-name> \
-     --analytics-query "traces | where message contains 'Event hub function' | order by timestamp desc | take 20"
+Or use the Azure Portal:
+1. Navigate to Application Insights → Logs
+2. Run this query:
+   ```kusto
+   traces 
+   | where timestamp > ago(5m) 
+   | where operation_Name in ("TimerTrigger", "EventHubsTrigger")
+   | project timestamp, operation_Name, message 
+   | order by timestamp desc
    ```
 
-3. **Check output Event Hub**:
-   - Verify processed messages in the output Event Hub using Azure Portal or Event Hub Explorer
+### Manual Message Sending (Optional)
+
+To send custom test messages to the input Event Hub, use Azure Portal:
+1. Go to Event Hubs namespace → `input-events`
+2. Click "Send events"
+3. Send JSON message:
+   ```json
+   {"id": "test-1", "message": "Hello from manual test!"}
+   ```
 
 ## Configuration
 
@@ -174,14 +190,34 @@ az eventhubs eventhub message send \
 
 | Variable | Description |
 |----------|-------------|
-| `EventHubConnection__fullyQualifiedNamespace` | Event Hub namespace (uses managed identity) |
-| `INPUT_EVENTHUB_NAME` | Name of the input Event Hub |
-| `OUTPUT_EVENTHUB_NAME` | Name of the output Event Hub |
+| `EventHubConnection__fullyQualifiedNamespace` | Event Hub namespace FQDN (uses managed identity) |
+| `INPUT_EVENTHUB_NAME` | Name of the input Event Hub (default: `input-events`) |
+| `OUTPUT_EVENTHUB_NAME` | Name of the output Event Hub (default: `output-events`) |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Application Insights connection string |
+| `AZURE_CLIENT_ID` | Managed identity client ID for authentication |
 
 ### Managed Identity
 
-The Function App uses managed identity to connect to Event Hubs. The infrastructure automatically assigns the "Event Hubs Data Owner" role to both your user account and the Function App's managed identity.
+The Function App uses **managed identity** for passwordless authentication to:
+- Event Hubs (Data Receiver and Sender roles)
+- Storage Account (Blob Data Owner, Table Data Contributor)
+- Application Insights (Monitoring Metrics Publisher)
+
+Your user identity is also automatically assigned these roles for local development.
+
+### VNet Integration
+
+Enable VNet integration during deployment:
+```bash
+azd env set VNET_ENABLED true
+azd provision
+```
+
+When enabled, the deployment creates:
+- Virtual Network with three subnets
+- Private endpoints for Event Hubs and Storage
+- Private DNS zones for name resolution
+- Network isolation with public access disabled
 
 ## Troubleshooting
 
