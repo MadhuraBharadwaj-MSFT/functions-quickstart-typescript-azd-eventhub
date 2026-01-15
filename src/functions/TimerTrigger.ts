@@ -34,7 +34,7 @@ export async function TimerTrigger(myTimer: any, context: InvocationContext): Pr
 }
 
 app.timer('TimerTrigger', {
-    schedule: '0 */1 * * * *', // Every 1 minute
+    schedule: '*/10 * * * * *', // Every 10 seconds
     handler: TimerTrigger,
     extraOutputs: [eventHubOutput]
 });
