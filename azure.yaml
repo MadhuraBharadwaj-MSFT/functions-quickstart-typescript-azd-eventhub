@@ -1,0 +1,21 @@
+name: eventhubs-typescript
+metadata:
+  template: eventhubs-typescript@0.0.1-beta
+services:
+  api:
+    project: .
+    language: ts
+    host: function
+
+hooks:
+  postprovision:
+    windows:
+      run: powershell -ExecutionPolicy Bypass -File ./infra/scripts/postprovision.ps1
+      continueOnError: false
+      interactive: false
+      shell: pwsh
+    posix:
+      run: chmod +x ./infra/scripts/postprovision.sh && ./infra/scripts/postprovision.sh
+      continueOnError: false
+      interactive: false
+      shell: sh

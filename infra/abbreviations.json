@@ -1,0 +1,11 @@
+{
+  "eventHubNamespaces": "evhns-",
+  "insightsComponents": "appi-",
+  "operationalInsightsWorkspaces": "log-",
+  "storageStorageAccounts": "st",
+  "webSitesFunctions": "func-",
+  "managedIdentityUserAssignedIdentities": "id-",
+  "networkVirtualNetworks": "vnet-",
+  "resourcesResourceGroups": "rg-",
+  "webServerFarms": "plan-"
+}
