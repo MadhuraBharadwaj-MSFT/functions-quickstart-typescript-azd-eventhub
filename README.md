@@ -1,49 +1,216 @@
-# Azure Functions TypeScript - Event Hubs Sample
+# Azure Functions with Event Hubs Trigger (TypeScript)
 
-An Azure Functions quickstart project demonstrating Event Hubs integration with TypeScript and Azure Developer CLI (azd). This sample showcases an automated message processing system with timer-based message generation and event-driven processing.
-
-## Features
-
-- **Timer Trigger**: Automatically generates 3-5 test messages every minute
-- **Event Hub Trigger**: Processes messages from Event Hubs with batching support
-- **Event Hub Output Binding**: Sends processed messages to output Event Hub
-- **TypeScript**: Full type safety and modern JavaScript features  
-- **Emoji Logging**: Enhanced logging with emojis for better visibility
-- **Azure Verified Modules (AVM)**: Production-ready Bicep infrastructure
-- **Managed Identity**: Passwordless, secure authentication throughout
-- **Flex Consumption**: Automatic scaling with Azure Functions Flex Consumption plan
-- **Optional VNet Integration**: Support for private endpoints and network isolation
+A TypeScript Azure Functions QuickStart project that demonstrates how to use an Event Hubs Trigger with Azure Developer CLI (azd) for quick and easy deployment. This sample showcases a real-time message processing system with automated message generation and event-driven processing.
 
 ## Architecture
 
-```
-Timer Trigger (every minute)
-    ↓
-Input Event Hub → Event Hub Trigger → Output Event Hub
-                         ↓
-                Application Insights
-```
+This architecture shows how the Azure Function processes messages through Event Hubs in real-time. The key components include:
 
-## Prerequisites
+- **Message Generator (Timer Trigger)**: Automatically generates test messages every 10 seconds and streams them to Event Hubs
+- **Azure Event Hubs**: Scalable messaging service that handles high-throughput message streaming with 2 partitions
+- **Message Processor (Event Hub Trigger)**: Executes automatically when messages arrive, processing and forwarding them
+- **Azure Monitor**: Provides logging and metrics for function execution and message analytics
+- **Downstream Integration**: Optional integration with other services for further processing
+
+This serverless architecture enables highly scalable, event-driven message processing with built-in resiliency and automatic scaling.
+
+## Top Use Cases
+
+1. **Real-time Message Processing Pipeline**: Automatically process messages as they're generated or received. Perfect for scenarios where you need to transform data, perform validation, or trigger notifications when new messages arrive without polling.
+
+2. **Event-Driven Microservices**: Build event-driven architectures where messages automatically trigger downstream business logic. Ideal for workflow orchestration, data synchronization, or integration scenarios.
+
+## Features
+
+- Event Hubs Trigger with high-throughput message streaming (18-30 messages/minute)
+- Azure Functions Flex Consumption plan for automatic scaling
+- TypeScript for type safety and modern JavaScript features
+- Optional VNet integration with private endpoints for enhanced security
+- Azure Developer CLI (azd) integration for easy deployment
+- Infrastructure as Code using Bicep templates with Azure Verified Modules
+- Comprehensive monitoring with Application Insights
+- Managed Identity authentication for secure, passwordless access
+
+## Getting Started
+
+### Prerequisites
 
 - [Node.js 22.x or later](https://nodejs.org/)
-- [Azure Functions Core Tools v4](https://docs.microsoft.com/azure/azure-functions/functions-run-local)
-- [Azure Developer CLI (azd)](https://aka.ms/azd-install)
-- [Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli)
+- [Azure Functions Core Tools](https://docs.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools)
+- [Azure Developer CLI (azd)](https://docs.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- [Azurite](https://github.com/Azure/Azurite) for local development
 - An Azure subscription
+
+### Quickstart
+
+1. **Clone this repository**
+
+   ```bash
+   git clone https://github.com/MadhuraBharadwaj-MSFT/functions-quickstart-typescript-azd-eventhub.git
+   cd functions-quickstart-typescript-azd-eventhub
+   ```
+
+2. **Make sure to run this before calling azd to provision resources so azd can run scripts required to setup permissions**
+
+   Mac/Linux:
+   ```bash
+   chmod +x ./infra/scripts/*.sh
+   ```
+
+   Windows:
+   ```powershell
+   Set-ExecutionPolicy RemoteSigned
+   ```
+
+3. **Configure VNet settings (optional)**
+
+   You can choose whether to enable VNet integration:
+
+   For simple deployment without VNet (public endpoints):
+   ```bash
+   azd env set VNET_ENABLED false
+   ```
+
+   For secure deployment with VNet (private endpoints):
+   ```bash
+   azd env set VNET_ENABLED true
+   ```
+
+   > **Note**: If you don't set `VNET_ENABLED`, the deployment will ask you to make an explicit choice.
+
+4. **Provision Azure resources using azd**
+
+   ```bash
+   azd provision
+   ```
+
+   This will create all necessary Azure resources including:
+   - Azure Event Hubs namespace and hubs
+   - Azure Function App (Flex Consumption)
+   - Application Insights for monitoring
+   - Storage Account for function app
+   - Virtual Network with private endpoints (if `VNET_ENABLED=true`)
+   - Other supporting resources
+   - `local.settings.json` for local development with Azure Functions Core Tools, which should look like this:
+
+   ```json
+   {
+     "IsEncrypted": false,
+     "Values": {
+       "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+       "FUNCTIONS_WORKER_RUNTIME": "node",
+       "EventHubConnection__fullyQualifiedNamespace": "your-eventhubs-namespace.servicebus.windows.net"
+     }
+   }
+   ```
+
+   The `azd` command automatically sets up the required connection strings and application settings.
+
+5. **Start the function locally**
+
+   ```bash
+   func start
+   ```
+
+   Or use VS Code to run the project with the built-in Azure Functions extension by pressing F5.
+
+6. **Test the function locally by watching the automatic message generation**
+
+   The Message Generator will automatically start creating messages every 10 seconds. You should see console output like:
+
+   ```
+   [2024-01-15T05:33:10.014Z] ⏰ Timer trigger function started
+   [2024-01-15T05:33:10.020Z] ✅ Sent 3 message(s) to input Event Hub
+   [2024-01-15T05:33:10.113Z] 🔄 Event hub function processing 4 message(s)
+   [2024-01-15T05:33:10.115Z] ✨ Message processed: {...}
+   [2024-01-15T05:33:10.121Z] 📤 Sent 4 message(s) to output Event Hub
+   ```
+
+7. **Deploy to Azure**
+
+   ```bash
+   azd up
+   ```
+
+   This will build your function app and deploy it to Azure. The deployment process:
+   - Checks for any bicep changes using `azd provision`
+   - Packages the TypeScript project using `azd package`
+   - Publishes the function app using `azd deploy`
+   - Updates application settings in Azure
+
+8. **Test the deployed function by monitoring the logs in Azure Portal:**
+   - Navigate to your Function App in the Azure Portal
+   - Go to Functions → TimerTrigger or EventHubsTrigger
+   - Check the Monitor tab to verify both functions are working
+   - Use Application Insights Live Metrics to see real-time message processing
+
+## Understanding the Code
+
+This sample contains two functions that work together:
+
+### Message Generator (Timer Trigger)
+
+Runs every 10 seconds and generates 3-5 test messages, then sends them to Event Hubs. The key configuration:
+
+- **Timer**: `*/10 * * * * *` (every 10 seconds)
+- **Output**: Event Hubs output binding to "input-events" hub
+- **Messages**: Test content with unique IDs and timestamps
+
+### Message Processor (Event Hubs Trigger)
+
+Triggered automatically when messages arrive in Event Hubs. Processes messages and forwards them to output hub. The key environment variable that configures its behavior is:
+
+- `EventHubConnection__fullyQualifiedNamespace`: The Event Hubs namespace endpoint
+
+These are automatically set up by azd during deployment for both local and cloud environments.
+
+Here's the core implementation of the Event Hubs trigger function:
+
+```typescript
+app.eventHub('EventHubsTrigger', {
+    connection: 'EventHubConnection',
+    eventHubName: '%INPUT_EVENTHUB_NAME%',
+    cardinality: 'many',
+    handler: async (messages: unknown[], context: InvocationContext) => {
+        context.log(`🔄 Event hub function processing ${messages.length} message(s)`);
+        
+        const processedMessages: EventMessage[] = [];
+        for (const message of messages) {
+            const eventMessage = message as EventMessage;
+            context.log(`📨 Processing event: ${JSON.stringify(eventMessage)}`);
+            
+            const processedMessage: EventMessage = {
+                ...eventMessage,
+                timestamp: new Date().toISOString()
+            };
+            
+            processedMessages.push(processedMessage);
+            context.log(`✨ Message processed: ${JSON.stringify(processedMessage)}`);
+        }
+        
+        context.extraOutputs.set(eventHubOutput, processedMessages);
+        context.log(`📤 Sent ${processedMessages.length} message(s) to output Event Hub`);
+    },
+    extraOutputs: [eventHubOutput]
+});
+```
 
 ## Project Structure
 
 ```
-.
+functions-quickstart-typescript-azd-eventhub/
 ├── src/
 │   └── functions/
 │       ├── EventHubsTrigger.ts    # Event Hub trigger function
 │       └── TimerTrigger.ts        # Timer trigger (generates messages)
-├── infra/                          # Bicep infrastructure files
-│   ├── main.bicep                  # Main deployment template
-│   ├── main.parameters.json        # Deployment parameters
-│   ├── abbreviations.json          # Resource naming conventions
+├── package.json                    # Node.js dependencies
+├── tsconfig.json                   # TypeScript configuration
+├── host.json                       # Function host settings
+├── local.settings.json             # Local development settings (generated)
+├── infra/                          # Infrastructure as Code
+│   ├── main.bicep                  # Main infrastructure template
+│   ├── main.parameters.json        # Infrastructure parameters
+│   ├── abbreviations.json          # Resource naming abbreviations
 │   ├── app/                        # Modular infrastructure components
 │   │   ├── api.bicep               # Function App (Flex Consumption)
 │   │   ├── eventhubs.bicep         # Event Hubs namespace and hubs
@@ -51,212 +218,72 @@ Input Event Hub → Event Hub Trigger → Output Event Hub
 │   │   ├── storage-PrivateEndpoint.bicep    # Storage private endpoints
 │   │   ├── vnet.bicep              # Virtual Network configuration
 │   │   └── rbac.bicep              # Role-based access control
-│   └── scripts/                    # Deployment scripts
+│   └── scripts/                    # Deployment and setup scripts
 │       ├── postprovision.ps1       # Post-provision setup (Windows)
 │       └── postprovision.sh        # Post-provision setup (POSIX)
-├── package.json
-├── tsconfig.json
-├── host.json
-├── local.settings.json
-└── azure.yaml                      # Azure Developer CLI configuration
+├── .azure/                         # Azure Developer CLI environment
+├── azure.yaml                      # Azure Developer CLI configuration
+└── README.md                       # This file
 ```
 
-## Function Logic
+## Networking and VNet Integration
 
-### TimerTrigger
-- Runs every minute (configurable via cron schedule)
-- Generates 3-5 random test messages
-- Sends messages to `input-events` Event Hub
-- Logs with ⏰, 📝, and ✅ emojis
+This sample supports optional VNet integration with private endpoints for enhanced security.
 
-### EventHubsTrigger  
-- Triggered by messages in `input-events` Event Hub
-- Processes messages in batches (cardinality: many)
-- Adds processing metadata and timestamps
-- Sends processed messages to `output-events` Event Hub
-- Logs with 🔄, 📨, ✨, and 📤 emojis
+### Configuration
 
-## Local Development
+Set the `VNET_ENABLED` environment variable before deployment:
 
-### 1. Install Dependencies
-
+For simple deployment without VNet (public endpoints):
 ```bash
-npm install
+azd env set VNET_ENABLED false
 ```
 
-### 2. Configure Local Settings
-
-The `azd provision` command automatically creates `local.settings.json` via a post-provision hook:
-
-```json
-{
-  "IsEncrypted": false,
-  "Values": {
-    "FUNCTIONS_WORKER_RUNTIME": "node",
-    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-    "EventHubConnection__fullyQualifiedNamespace": "<your-eventhub-namespace>.servicebus.windows.net",
-    "INPUT_EVENTHUB_NAME": "input-events",
-    "OUTPUT_EVENTHUB_NAME": "output-events"
-  }
-}
-```
-
-### 3. Build the Project
-
-```bash
-npm run build
-```
-
-### 4. Run Locally
-
-```bash
-npm start
-```
-
-## Deploy to Azure
-
-### Using Azure Developer CLI (Recommended)
-
-1. **Login to Azure**:
-   ```bash
-   azd auth login
-   ```
-
-2. **Provision and deploy**:
-   ```bash
-   azd up
-   ```
-
-   This command will:
-   - Prompt for environment name and Azure location
-   - Ask whether to enable VNet integration (optional)
-   - Create all Azure resources (Event Hubs, Function App, Storage, Application Insights)
-   - Deploy your function code
-   - Configure all connections and settings with managed identity
-   - Create `local.settings.json` for local development
-
-### What Gets Deployed
-
-- **Event Hubs Namespace** with two hubs:
-  - `input-events` (2 partitions)
-  - `output-events` (2 partitions)
-- **Function App** on Flex Consumption plan (FC1 SKU)
-- **Application Insights** for monitoring
-- **Storage Account** for function app storage
-- **User-Assigned Managed Identity** for authentication
-- **RBAC Role Assignments** for secure access
-- **Optional**: VNet, Private Endpoints, and DNS zones
-
-## Testing
-
-### Automated Testing (Recommended)
-
-The deployed function automatically generates and processes messages every minute via the TimerTrigger. No manual message sending required!
-
-### Monitor Function Execution
-
-**View in Application Insights Logs**:
-```bash
-# Query recent function executions
-az monitor app-insights query \
-  --app <app-insights-name> \
-  --analytics-query "traces | where timestamp > ago(5m) | project timestamp, operation_Name, message | order by timestamp desc"
-```
-
-Or use the Azure Portal:
-1. Navigate to Application Insights → Logs
-2. Run this query:
-   ```kusto
-   traces 
-   | where timestamp > ago(5m) 
-   | where operation_Name in ("TimerTrigger", "EventHubsTrigger")
-   | project timestamp, operation_Name, message 
-   | order by timestamp desc
-   ```
-
-### Manual Message Sending (Optional)
-
-To send custom test messages to the input Event Hub, use Azure Portal:
-1. Go to Event Hubs namespace → `input-events`
-2. Click "Send events"
-3. Send JSON message:
-   ```json
-   {"id": "test-1", "message": "Hello from manual test!"}
-   ```
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `EventHubConnection__fullyQualifiedNamespace` | Event Hub namespace FQDN (uses managed identity) |
-| `INPUT_EVENTHUB_NAME` | Name of the input Event Hub (default: `input-events`) |
-| `OUTPUT_EVENTHUB_NAME` | Name of the output Event Hub (default: `output-events`) |
-| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Application Insights connection string |
-| `AZURE_CLIENT_ID` | Managed identity client ID for authentication |
-
-### Managed Identity
-
-The Function App uses **managed identity** for passwordless authentication to:
-- Event Hubs (Data Receiver and Sender roles)
-- Storage Account (Blob Data Owner, Table Data Contributor)
-- Application Insights (Monitoring Metrics Publisher)
-
-Your user identity is also automatically assigned these roles for local development.
-
-### VNet Integration
-
-Enable VNet integration during deployment:
+For secure deployment with VNet (private endpoints):
 ```bash
 azd env set VNET_ENABLED true
-azd provision
 ```
 
-When enabled, the deployment creates:
-- Virtual Network with three subnets
-- Private endpoints for Event Hubs and Storage
+When `vnetEnabled=true`, the deployment creates:
+
+- Virtual Network with three subnets (app integration, storage endpoints, Event Hub endpoints)
+- Private endpoints for Storage (blob, table, queue) and Event Hubs
 - Private DNS zones for name resolution
 - Network isolation with public access disabled
 
-## Troubleshooting
+The VNet deployment takes longer (~4-5 minutes) but provides enhanced security suitable for production workloads.
 
-### Function not triggering
-- Verify the Event Hub connection string and names
-- Check that messages are being sent to the input Event Hub
-- Review Application Insights logs for errors
+### VNet Architecture
 
-### Authentication errors
-- Ensure managed identity is enabled on the Function App
-- Verify role assignments (Event Hubs Data Owner) are configured
-- Check that the namespace FQDN is correct in settings
+When VNet integration is enabled, the following network architecture is created:
 
-### Build errors
-- Run `npm install` to ensure all dependencies are installed
-- Check TypeScript version compatibility
-- Verify Node.js version (22.x or later)
+#### Subnets
 
-## Clean Up
+1. App Integration Subnet: For Function App VNet integration
+2. Storage Private Endpoints Subnet: For Storage Account private endpoints
+3. Event Hubs Private Endpoints Subnet: For Event Hubs private endpoints
 
-To delete all Azure resources:
+#### Private Endpoints
 
-```bash
-azd down
-```
+- **Storage Account**: Blob, Table, and Queue private endpoints
+- **Event Hubs**: Namespace private endpoint
 
-Or manually:
+#### DNS Configuration
 
-```bash
-az group delete --name rg-eventhubs-typescript
-```
+- Private DNS zones are automatically created and linked to the VNet
+- Ensures proper name resolution for private endpoints
+
+### Security Considerations
+
+When using VNet integration:
+
+- Public access to Event Hubs and Storage is disabled
+- All traffic flows through private endpoints within the VNet
+- Client IP must be added to Event Hubs network rules for local development (done automatically by post-provision scripts)
+- Managed Identity is used for authentication between services
 
 ## Resources
 
-- [Azure Functions TypeScript Developer Guide](https://docs.microsoft.com/azure/azure-functions/functions-reference-node)
+- [Azure Functions Documentation](https://docs.microsoft.com/azure/azure-functions/)
 - [Azure Event Hubs Documentation](https://docs.microsoft.com/azure/event-hubs/)
-- [Azure Developer CLI](https://aka.ms/azd)
-- [Bicep Documentation](https://docs.microsoft.com/azure/azure-resource-manager/bicep/)
-
-## License
-
-This project is licensed under the MIT License.
+- [Azure Developer CLI Documentation](https://docs.microsoft.com/azure/developer/azure-developer-cli/)
